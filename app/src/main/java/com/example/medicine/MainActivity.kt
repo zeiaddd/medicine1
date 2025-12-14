@@ -7,18 +7,25 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.medicine.data.AppDatabase
+import com.example.medicine.data.Medicine
 import com.example.medicine.data.MedicineRepository
 import com.example.medicine.ui.theme.MedicineTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.navigation.compose.NavHost // Required for Navigation
-import androidx.navigation.compose.composable // Required for Navigation
-import androidx.navigation.compose.rememberNavController // Required for Navigation
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import java.util.Calendar
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+// NOTE: We no longer need the produceState import for the daily count fix
+// import androidx.compose.runtime.produceState
 
 // --- NAVIGATION DESTINATIONS ---
 private object Destinations {
@@ -35,20 +42,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MedicineTheme {
-                // Initialize the NavController
                 val navController = rememberNavController()
 
-                // Get the ViewModel (it is shared across all screens via NavHost)
+                // Get the ViewModel
                 val viewModel: MedicineViewModel = viewModel(
                     factory = MedicineViewModelFactory(repository)
                 )
 
-                // The NavHost defines the possible screens and the starting screen
                 NavHost(
                     navController = navController,
                     startDestination = Destinations.HOME_SCREEN
                 ) {
-                    // 1. Home Screen (Adding Medicines)
                     composable(Destinations.HOME_SCREEN) {
                         MedicineReminderScreen(
                             viewModel = viewModel,
@@ -58,12 +62,11 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 2. Details Screen (Reporting/List)
                     composable(Destinations.DETAILS_SCREEN) {
                         MedicineDetailsScreen(
                             viewModel = viewModel,
                             onNavigateToHome = {
-                                navController.popBackStack() // Go back to the previous screen
+                                navController.popBackStack()
                             }
                         )
                     }
@@ -82,28 +85,29 @@ fun Long.toDateString(): String {
 fun stringToMillis(dateString: String): Long? {
     val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return try {
-        // Clear time components for consistent date comparison (start of the day)
         val date = format.parse(dateString)
-        date?.time?.let {
-            // Optional: Ensure time is set to midnight (start of day) for consistency
-            // This is complex, so we'll rely on the SimpleDateFormat default behavior for now
-            it
-        }
+        // Ensure that date represents the start of the day for consistent calculations
+        Calendar.getInstance().apply {
+            time = date
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
     } catch (e: Exception) {
         null
     }
 }
 
 // =========================================================================
-//                  SCREEN 1: MEDICINE INPUT/HOME SCREEN
+//                   SCREEN 1: MEDICINE INPUT/HOME SCREEN
 // =========================================================================
 
 @Composable
 fun MedicineReminderScreen(
     viewModel: MedicineViewModel,
-    onNavigateToDetails: () -> Unit // <-- NEW NAVIGATION CALLBACK
+    onNavigateToDetails: () -> Unit
 ) {
-    // State variables for capturing user input
     var medicineName by remember { mutableStateOf("") }
     var dosesPerDay by remember { mutableStateOf("1") }
 
@@ -122,14 +126,13 @@ fun MedicineReminderScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Add New Medicine", style = MaterialTheme.typography.headlineMedium)
-                // --- NAVIGATION BUTTON ---
                 Button(onClick = onNavigateToDetails) {
                     Text("View Reports")
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ... (Input Fields for Name, Doses, Start Date, End Date) - Use the same code you verified
+            // Input Fields
             OutlinedTextField(value = medicineName, onValueChange = { medicineName = it }, label = { Text("Medicine Name") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(value = dosesPerDay, onValueChange = { dosesPerDay = it }, label = { Text("Doses Per Day") }, modifier = Modifier.fillMaxWidth())
@@ -145,7 +148,7 @@ fun MedicineReminderScreen(
                     val startMillis = stringToMillis(startDateString)
                     val endMillis = stringToMillis(endDateString)
 
-                    if (medicineName.isNotBlank() && startMillis != null && endMillis != null && endMillis > startMillis) {
+                    if (medicineName.isNotBlank() && startMillis != null && endMillis != null && endMillis >= startMillis) {
                         viewModel.insertMedicine(
                             name = medicineName,
                             doses = dosesPerDay,
@@ -165,7 +168,7 @@ fun MedicineReminderScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Display Saved Medicines
+            // Display Saved Medicines (Simple List)
             Text("Saved Medicines:", style = MaterialTheme.typography.titleMedium)
 
             Column {
@@ -182,15 +185,117 @@ fun MedicineReminderScreen(
 
 
 // =========================================================================
-//                  SCREEN 2: MEDICINE DETAILS / REPORT SCREEN
+//                   DOSE TRACKING CARD (FINAL FLOW-BASED VERSION)
+// =========================================================================
+
+@Composable
+fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
+    // 1. Collect the necessary flow data
+    val dosesTaken by viewModel.getTakenDoseCount(medicine.id).collectAsState(initial = 0)
+    val allRecordedDoses by viewModel.getAllRecordedDoseCount(medicine.id).collectAsState(initial = 0)
+
+    // THE FIX: Collect the daily count as a Flow directly from the ViewModel/Repository/DAO.
+    // This provides instantaneous updates as soon as the database is written to.
+    val recordsToday by viewModel.getRecordsTodayCountFlow(medicine.id).collectAsState(initial = 0)
+
+    // Total required slots calculation (inclusive of end date)
+    val totalDays = ((medicine.endDate - medicine.startDate) / TimeUnit.DAYS.toMillis(1)) + 1
+    val totalDosesRequired = totalDays * medicine.dosesPerDay
+
+    // Flags for course status
+    val isCourseFinished = System.currentTimeMillis() > medicine.endDate
+    val allSlotsRecorded = allRecordedDoses >= totalDosesRequired
+    val dailyLimitReached = recordsToday >= medicine.dosesPerDay // This now updates instantly
+
+    // Commitment calculation
+    val commitmentPercentage = if (totalDosesRequired > 0) (dosesTaken.toFloat() / totalDosesRequired) * 100 else 0f
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(medicine.name, style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Basic Details
+            Text("Doses per day: ${medicine.dosesPerDay}")
+            Text("Duration: ${medicine.startDate.toDateString()} to ${medicine.endDate.toDateString()}")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Commitment Report
+            Text("Total Doses Required: ${totalDosesRequired.toInt()}", style = MaterialTheme.typography.bodyMedium)
+            Text("Doses Taken (Committed): $dosesTaken", style = MaterialTheme.typography.bodyMedium)
+            Text("Doses Skipped (Recorded): ${allRecordedDoses - dosesTaken}", style = MaterialTheme.typography.bodyMedium)
+
+            // Percentage Display
+            Text(
+                "Commitment: ${String.format("%.1f", commitmentPercentage)}%",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Divider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- DOSE TRACKING BUTTONS & MESSAGES ---
+            when {
+                isCourseFinished -> {
+                    Text("✅ Treatment finished on ${medicine.endDate.toDateString()}.",
+                        color = Color.Gray, style = MaterialTheme.typography.titleSmall)
+                }
+                allSlotsRecorded -> {
+                    Text("🛑 All ${totalDosesRequired.toInt()} doses recorded!",
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall)
+                }
+                dailyLimitReached -> {
+                    // This message appears instantly now
+                    Text("😴 Daily dose limit (${medicine.dosesPerDay}) reached for today.",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleSmall)
+                    // The buttons will be skipped because this condition is met instantly
+                }
+                else -> {
+                    // Display remaining doses and show enabled buttons
+                    Text("Today: ${recordsToday} of ${medicine.dosesPerDay} doses recorded.", style = MaterialTheme.typography.titleSmall)
+                    Text("Remaining today: ${medicine.dosesPerDay - recordsToday}", style = MaterialTheme.typography.bodySmall)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        Button(
+                            onClick = { viewModel.recordDose(medicine.id, taken = true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        ) {
+                            Text("TAKEN")
+                        }
+
+                        Button(
+                            onClick = { viewModel.recordDose(medicine.id, taken = false) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5722)),
+                        ) {
+                            Text("SKIPPED")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// =========================================================================
+//                   SCREEN 2: MEDICINE DETAILS / REPORT SCREEN
 // =========================================================================
 
 @Composable
 fun MedicineDetailsScreen(
     viewModel: MedicineViewModel,
-    onNavigateToHome: () -> Unit // <-- NAVIGATION CALLBACK
+    onNavigateToHome: () -> Unit
 ) {
-    // Collect the full list of medicines
     val allMedicines by viewModel.allMedicines.collectAsState(initial = emptyList())
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -200,7 +305,6 @@ fun MedicineDetailsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Medicine Usage Report", style = MaterialTheme.typography.headlineMedium)
-                // --- NAVIGATION BUTTON ---
                 Button(onClick = onNavigateToHome) {
                     Text("Add Medicine")
                 }
@@ -210,45 +314,10 @@ fun MedicineDetailsScreen(
             if (allMedicines.isEmpty()) {
                 Text("No medicines saved yet.", style = MaterialTheme.typography.bodyLarge)
             } else {
-                // Display the detailed report for each medicine
-                allMedicines.forEach { medicine ->
-                    val totalDays = (medicine.endDate - medicine.startDate) / TimeUnit.DAYS.toMillis(1)
-                    val totalDoses = totalDays * medicine.dosesPerDay
-
-                    // --- MOCKED/SIMULATED DATA for Doses Taken ---
-                    // Since we don't have a tracking mechanism, we mock the 'doses taken'
-                    // to demonstrate the percentage calculation. We assume 50% completion.
-                    val dosesTaken = (totalDoses / 2).toInt()
-                    val commitmentPercentage = if (totalDoses > 0) (dosesTaken.toFloat() / totalDoses) * 100 else 0f
-                    // ------------------------------------------
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(medicine.name, style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Basic Details
-                            Text("Doses per day: ${medicine.dosesPerDay}")
-                            Text("Duration: ${medicine.startDate.toDateString()} to ${medicine.endDate.toDateString()}")
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Commitment Report
-                            Text("Total Doses Required: ${totalDoses.toInt()}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Doses Taken (Simulated): $dosesTaken", style = MaterialTheme.typography.bodyMedium)
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Percentage Display
-                            Text(
-                                "Commitment: ${String.format("%.1f", commitmentPercentage)}%",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                // LazyColumn for scrolling efficiency
+                LazyColumn {
+                    items(allMedicines) { medicine ->
+                        DoseTrackerCard(medicine = medicine, viewModel = viewModel)
                     }
                 }
             }
