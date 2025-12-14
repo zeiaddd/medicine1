@@ -2,7 +2,7 @@ package com.example.medicine.data
 
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
-import kotlinx.coroutines.flow.first // <-- NEW REQUIRED IMPORT
+import kotlinx.coroutines.flow.first
 
 class MedicineRepository(private val medicineDao: MedicineDao) {
 
@@ -19,6 +19,16 @@ class MedicineRepository(private val medicineDao: MedicineDao) {
     suspend fun getMedicineById(medicineId: Int): Medicine? {
         return medicineDao.getMedicineById(medicineId)
     }
+
+    // --- NEW DELETE FUNCTION ---
+    /**
+     * Deletes a medicine and all its associated dose records (history).
+     */
+    suspend fun deleteMedicineAndRecords(medicineId: Int) {
+        medicineDao.deleteDoseRecordsByMedicineId(medicineId) // 1. Delete all history
+        medicineDao.deleteMedicineById(medicineId)            // 2. Delete the medicine entry
+    }
+    // ---------------------------
 
     fun getTakenDoseCount(medicineId: Int): Flow<Int> {
         return medicineDao.getTakenDoseCount(medicineId)

@@ -100,7 +100,7 @@ fun stringToMillis(dateString: String): Long? {
 }
 
 // =========================================================================
-//                   SCREEN 1: MEDICINE INPUT/HOME SCREEN
+//                   SCREEN 1: MEDICINE INPUT/HOME SCREEN (UPDATED FOR SCROLL)
 // =========================================================================
 
 @Composable
@@ -121,6 +121,7 @@ fun MedicineReminderScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header and View Reports Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -168,24 +169,31 @@ fun MedicineReminderScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Display Saved Medicines (Simple List)
+            // Display Saved Medicines (Now Scrollable via LazyColumn)
             Text("Saved Medicines:", style = MaterialTheme.typography.titleMedium)
 
-            Column {
-                allMedicines.forEach { medicine ->
+            // START OF FIX: Using LazyColumn to make the list scrollable
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(), // Allow the LazyColumn to take remaining height
+                contentPadding = PaddingValues(top = 8.dp)
+            ) {
+                items(allMedicines) { medicine ->
                     Text(
                         "-> ${medicine.name} (${medicine.dosesPerDay} times/day). Starts: ${medicine.startDate.toDateString()}",
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
                     )
                 }
             }
+            // END OF FIX
         }
     }
 }
 
 
 // =========================================================================
-//                   DOSE TRACKING CARD (FINAL FLOW-BASED VERSION)
+//                   DOSE TRACKING CARD (UPDATED with DELETE BUTTON)
 // =========================================================================
 
 @Composable
@@ -195,7 +203,6 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
     val allRecordedDoses by viewModel.getAllRecordedDoseCount(medicine.id).collectAsState(initial = 0)
 
     // THE FIX: Collect the daily count as a Flow directly from the ViewModel/Repository/DAO.
-    // This provides instantaneous updates as soon as the database is written to.
     val recordsToday by viewModel.getRecordsTodayCountFlow(medicine.id).collectAsState(initial = 0)
 
     // Total required slots calculation (inclusive of end date)
@@ -205,7 +212,7 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
     // Flags for course status
     val isCourseFinished = System.currentTimeMillis() > medicine.endDate
     val allSlotsRecorded = allRecordedDoses >= totalDosesRequired
-    val dailyLimitReached = recordsToday >= medicine.dosesPerDay // This now updates instantly
+    val dailyLimitReached = recordsToday >= medicine.dosesPerDay
 
     // Commitment calculation
     val commitmentPercentage = if (totalDosesRequired > 0) (dosesTaken.toFloat() / totalDosesRequired) * 100 else 0f
@@ -237,6 +244,16 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            // --- NEW DELETE BUTTON ---
+            Button(
+                onClick = { viewModel.deleteMedicine(medicine.id) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
+            ) {
+                Text("DELETE MEDICINE & HISTORY", color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(16.dp)) // Spacer after the new button
+
             Divider()
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -255,7 +272,6 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
                     Text("😴 Daily dose limit (${medicine.dosesPerDay}) reached for today.",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleSmall)
-                    // The buttons will be skipped because this condition is met instantly
                 }
                 else -> {
                     // Display remaining doses and show enabled buttons
@@ -314,7 +330,7 @@ fun MedicineDetailsScreen(
             if (allMedicines.isEmpty()) {
                 Text("No medicines saved yet.", style = MaterialTheme.typography.bodyLarge)
             } else {
-                // LazyColumn for scrolling efficiency
+                // LazyColumn for scrolling efficiency (already here, no change needed)
                 LazyColumn {
                     items(allMedicines) { medicine ->
                         DoseTrackerCard(medicine = medicine, viewModel = viewModel)

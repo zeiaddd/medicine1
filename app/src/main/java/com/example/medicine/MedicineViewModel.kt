@@ -29,6 +29,18 @@ class MedicineViewModel(private val repository: MedicineRepository) : ViewModel(
         }
     }
 
+    // --- NEW DELETE FUNCTION ---
+    /**
+     * Deletes a medicine and all associated records in a background thread.
+     * Deletion updates the UI automatically because allMedicine is a Flow.
+     */
+    fun deleteMedicine(medicineId: Int) {
+        viewModelScope.launch {
+            repository.deleteMedicineAndRecords(medicineId)
+        }
+    }
+    // ---------------------------
+
     /**
      * Records a dose (taken or skipped). The limit is dynamically set by the medicine's dosesPerDay field.
      */

@@ -23,6 +23,14 @@ interface MedicineDao {
     @Query("SELECT * FROM medicines WHERE id = :medicineId")
     suspend fun getMedicineById(medicineId: Int): Medicine?
 
+    /** Deletes the medicine entry itself. **/
+    @Query("DELETE FROM medicines WHERE id = :medicineId")
+    suspend fun deleteMedicineById(medicineId: Int)
+
+    /** Deletes all associated dose records for a medicine. **/
+    @Query("DELETE FROM dose_record WHERE medicine_id = :medicineId")
+    suspend fun deleteDoseRecordsByMedicineId(medicineId: Int)
+
     // --- FLOW FUNCTIONS FOR LIVE UI UPDATES ---
 
     @Query("SELECT COUNT(id) FROM dose_record WHERE medicine_id = :medicineId AND taken = 1")
