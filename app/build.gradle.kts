@@ -12,10 +12,6 @@ android {
     // 2. USE YOUR CONFIRMED COMPILE SDK 36
     compileSdk = 36
 
-    // Note: If you have a different way of setting compileSdk (like release(36)),
-    // you may need to adjust this block based on your libs configuration.
-    // The standard syntax is: compileSdk = 36
-
     defaultConfig {
         applicationId = "com.example.medicine"
         minSdk = 24
@@ -60,6 +56,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // ---------------------------------------------------------------------------------
+    // 5. NAVIGATION (NEW REQUIREMENT for multi-screen app)
+    // ---------------------------------------------------------------------------------
+    // Implementation for Compose Navigation: Required to switch between Home and Details screens.
+    implementation("androidx.navigation:navigation-compose:2.7.7") // Using the latest stable version
+    // ---------------------------------------------------------------------------------
+
 
     // ---------------------------------------------------------------------------------
     // 3. ROOM DATABASE (Lab 05 requirement)
