@@ -82,7 +82,7 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
 
     // ---------------------------------------------------------------------------------
-    // 4. TESTING
+    // 4. FOR TESTING
     // ---------------------------------------------------------------------------------
     val coroutines_test_version = "1.8.0"
 
