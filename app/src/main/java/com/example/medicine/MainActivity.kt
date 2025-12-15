@@ -24,10 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import java.util.Calendar
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-// NOTE: We no longer need the produceState import for the daily count fix
-// import androidx.compose.runtime.produceState
 
-// --- NAVIGATION DESTINATIONS ---
 private object Destinations {
     const val HOME_SCREEN = "home"
     const val DETAILS_SCREEN = "details"
@@ -76,17 +73,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Utility function to convert milliseconds to a human-readable date string (for display)
+
 fun Long.toDateString(): String {
     return SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(this))
 }
 
-// Utility function to convert date string (DD/MM/YYYY) to milliseconds (for saving)
+
 fun stringToMillis(dateString: String): Long? {
     val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return try {
         val date = format.parse(dateString)
-        // Ensure that date represents the start of the day for consistent calculations
+
         Calendar.getInstance().apply {
             time = date
             set(Calendar.HOUR_OF_DAY, 0)
@@ -100,7 +97,7 @@ fun stringToMillis(dateString: String): Long? {
 }
 
 // =========================================================================
-//                   SCREEN 1: MEDICINE INPUT/HOME SCREEN (UPDATED FOR SCROLL)
+//                   SCREEN 1: MEDICINE INPUT/HOME SCREEN
 // =========================================================================
 
 @Composable
@@ -186,35 +183,30 @@ fun MedicineReminderScreen(
                     )
                 }
             }
-            // END OF FIX
+
         }
     }
 }
 
 
 // =========================================================================
-//                   DOSE TRACKING CARD (UPDATED with DELETE BUTTON)
+//                   DOSE TRACKING CARD
 // =========================================================================
 
 @Composable
 fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
-    // 1. Collect the necessary flow data
+
     val dosesTaken by viewModel.getTakenDoseCount(medicine.id).collectAsState(initial = 0)
     val allRecordedDoses by viewModel.getAllRecordedDoseCount(medicine.id).collectAsState(initial = 0)
-
-    // THE FIX: Collect the daily count as a Flow directly from the ViewModel/Repository/DAO.
     val recordsToday by viewModel.getRecordsTodayCountFlow(medicine.id).collectAsState(initial = 0)
 
-    // Total required slots calculation (inclusive of end date)
     val totalDays = ((medicine.endDate - medicine.startDate) / TimeUnit.DAYS.toMillis(1)) + 1
     val totalDosesRequired = totalDays * medicine.dosesPerDay
 
-    // Flags for course status
     val isCourseFinished = System.currentTimeMillis() > medicine.endDate
     val allSlotsRecorded = allRecordedDoses >= totalDosesRequired
     val dailyLimitReached = recordsToday >= medicine.dosesPerDay
 
-    // Commitment calculation
     val commitmentPercentage = if (totalDosesRequired > 0) (dosesTaken.toFloat() / totalDosesRequired) * 100 else 0f
 
     Card(
@@ -226,17 +218,17 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
             Text(medicine.name, style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Basic Details
+
             Text("Doses per day: ${medicine.dosesPerDay}")
             Text("Duration: ${medicine.startDate.toDateString()} to ${medicine.endDate.toDateString()}")
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Commitment Report
+
             Text("Total Doses Required: ${totalDosesRequired.toInt()}", style = MaterialTheme.typography.bodyMedium)
             Text("Doses Taken (Committed): $dosesTaken", style = MaterialTheme.typography.bodyMedium)
             Text("Doses Skipped (Recorded): ${allRecordedDoses - dosesTaken}", style = MaterialTheme.typography.bodyMedium)
 
-            // Percentage Display
+
             Text(
                 "Commitment: ${String.format("%.1f", commitmentPercentage)}%",
                 style = MaterialTheme.typography.titleMedium,
@@ -244,7 +236,6 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- NEW DELETE BUTTON ---
             Button(
                 onClick = { viewModel.deleteMedicine(medicine.id) },
                 modifier = Modifier.fillMaxWidth(),
@@ -257,7 +248,6 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
             Divider()
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- DOSE TRACKING BUTTONS & MESSAGES ---
             when {
                 isCourseFinished -> {
                     Text("✅ Treatment finished on ${medicine.endDate.toDateString()}.",
@@ -268,13 +258,12 @@ fun DoseTrackerCard(medicine: Medicine, viewModel: MedicineViewModel) {
                         color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall)
                 }
                 dailyLimitReached -> {
-                    // This message appears instantly now
                     Text("😴 Daily dose limit (${medicine.dosesPerDay}) reached for today.",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleSmall)
                 }
                 else -> {
-                    // Display remaining doses and show enabled buttons
+
                     Text("Today: ${recordsToday} of ${medicine.dosesPerDay} doses recorded.", style = MaterialTheme.typography.titleSmall)
                     Text("Remaining today: ${medicine.dosesPerDay - recordsToday}", style = MaterialTheme.typography.bodySmall)
 

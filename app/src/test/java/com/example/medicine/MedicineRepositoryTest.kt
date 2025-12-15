@@ -39,7 +39,6 @@ class MedicineRepositoryTest {
         endDate = 2000L
     )
 
-    // Dummy data for Flow count tests
     private val expectedDoseCount = 5
     private val MEDICINE_ID = 1
 
@@ -47,7 +46,7 @@ class MedicineRepositoryTest {
     fun setup() {
         MockitoAnnotations.openMocks(this)
 
-        // Stub DAO's getAll() (the correct function name) to return an empty Flow
+
         whenever(mockDao.getAll()).thenReturn(flowOf<List<Medicine>>(emptyList()))
 
         repository = MedicineRepository(mockDao)
@@ -69,10 +68,8 @@ class MedicineRepositoryTest {
         val expectedList = listOf(testMedicine)
         whenever(mockDao.getAll()).thenReturn(flowOf(expectedList))
 
-        // Re-initialize the repository to pick up the new stub
         repository = MedicineRepository(mockDao)
 
-        // Act & Assert
         assertThat(repository.allMedicines.first()).isEqualTo(expectedList)
     }
 
@@ -81,10 +78,8 @@ class MedicineRepositoryTest {
     fun recordDose_callsDaoInsertDoseRecord() = testScope.runTest {
         val takenStatus = true
 
-        // Act
         repository.insertDoseRecord(DoseRecord(medicineId = MEDICINE_ID, taken = takenStatus))
 
-        // Assert
         verify(mockDao).insertDoseRecord(
             check { doseRecord ->
                 assertThat(doseRecord.medicineId).isEqualTo(MEDICINE_ID)
@@ -93,35 +88,29 @@ class MedicineRepositoryTest {
         )
     }
 
-    // --- 4. FLOW COUNT TEST: Taken Doses ---
     @Test
     fun getTakenDoseCount_returnsDaoFlow() = testScope.runTest {
         whenever(mockDao.getTakenDoseCount(MEDICINE_ID)).thenReturn(flowOf(expectedDoseCount))
         assertThat(repository.getTakenDoseCount(MEDICINE_ID).first()).isEqualTo(expectedDoseCount)
     }
 
-    // --- 5. FLOW COUNT TEST: All Recorded Doses ---
     @Test
     fun getAllRecordedDoseCount_returnsDaoFlow() = testScope.runTest {
         whenever(mockDao.getAllRecordedDoseCount(MEDICINE_ID)).thenReturn(flowOf(expectedDoseCount))
         assertThat(repository.getAllRecordedDoseCount(MEDICINE_ID).first()).isEqualTo(expectedDoseCount)
     }
 
-    // --- 6. DELETE TEST (Matches the Repo's 'deleteMedicineAndRecords' logic) ---
     @Test
     fun deleteMedicineAndRecords_callsDaoDeleteInCorrectOrder() = testScope.runTest {
         // Arrange
         val medicineId = 1
-        val inOrder = inOrder(mockDao) // Ensure the calls happen sequentially
+        val inOrder = inOrder(mockDao)
 
         // Act
         repository.deleteMedicineAndRecords(medicineId)
 
-        // Assert:
-        // 1. Verify deleteDoseRecordsByMedicineId is called FIRST
         inOrder.verify(mockDao).deleteDoseRecordsByMedicineId(medicineId)
 
-        // 2. Verify deleteMedicineById is called SECOND
         inOrder.verify(mockDao).deleteMedicineById(medicineId)
     }
     // --- 7. DAILY COUNT FLOW TEST (SAFE VERSION) ---

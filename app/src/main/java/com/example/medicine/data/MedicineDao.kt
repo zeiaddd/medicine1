@@ -15,7 +15,6 @@ interface MedicineDao {
     @Query("SELECT * FROM medicines ORDER BY name ASC")
     fun getAll(): Flow<List<Medicine>>
 
-    // --- DOSE RECORDING ---
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDoseRecord(doseRecord: DoseRecord)
@@ -23,15 +22,14 @@ interface MedicineDao {
     @Query("SELECT * FROM medicines WHERE id = :medicineId")
     suspend fun getMedicineById(medicineId: Int): Medicine?
 
-    /** Deletes the medicine entry itself. **/
+
     @Query("DELETE FROM medicines WHERE id = :medicineId")
     suspend fun deleteMedicineById(medicineId: Int)
 
-    /** Deletes all associated dose records for a medicine. **/
+
     @Query("DELETE FROM dose_record WHERE medicine_id = :medicineId")
     suspend fun deleteDoseRecordsByMedicineId(medicineId: Int)
 
-    // --- FLOW FUNCTIONS FOR LIVE UI UPDATES ---
 
     @Query("SELECT COUNT(id) FROM dose_record WHERE medicine_id = :medicineId AND taken = 1")
     fun getTakenDoseCount(medicineId: Int): Flow<Int>
@@ -39,10 +37,6 @@ interface MedicineDao {
     @Query("SELECT COUNT(id) FROM dose_record WHERE medicine_id = :medicineId")
     fun getAllRecordedDoseCount(medicineId: Int): Flow<Int>
 
-    /**
-     * FIX: Queries the number of ALL recorded doses for the day, returning a Flow.
-     * This is used by the UI (MainActivity.kt) for instantaneous count updates.
-     */
     @Query("SELECT COUNT(id) FROM dose_record WHERE medicine_id = :medicineId AND timestamp >= :startOfDayMillis AND timestamp < :endOfDayMillis")
     fun getDailyDoseRecordCountFlow(medicineId: Int, startOfDayMillis: Long, endOfDayMillis: Long): Flow<Int>
 }

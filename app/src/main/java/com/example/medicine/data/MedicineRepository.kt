@@ -20,13 +20,9 @@ class MedicineRepository(private val medicineDao: MedicineDao) {
         return medicineDao.getMedicineById(medicineId)
     }
 
-    // --- NEW DELETE FUNCTION ---
-    /**
-     * Deletes a medicine and all its associated dose records (history).
-     */
     suspend fun deleteMedicineAndRecords(medicineId: Int) {
-        medicineDao.deleteDoseRecordsByMedicineId(medicineId) // 1. Delete all history
-        medicineDao.deleteMedicineById(medicineId)            // 2. Delete the medicine entry
+        medicineDao.deleteDoseRecordsByMedicineId(medicineId)
+        medicineDao.deleteMedicineById(medicineId)
     }
     // ---------------------------
 
@@ -38,36 +34,22 @@ class MedicineRepository(private val medicineDao: MedicineDao) {
         return medicineDao.getAllRecordedDoseCount(medicineId)
     }
 
-    /**
-     * FIX: Returns a LIVE Flow of the count of recorded doses for TODAY.
-     * This is used by the Compose UI to update instantly.
-     */
+
     fun getRecordsTodayCountFlow(medicineId: Int): Flow<Int> {
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = System.currentTimeMillis()
-
-        // Start of today (midnight)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         val startOfDay = calendar.timeInMillis
-
-        // End of today (just before tomorrow)
         calendar.add(Calendar.DAY_OF_YEAR, 1)
         val endOfDay = calendar.timeInMillis
 
-        // Use the new Flow function from the DAO
         return medicineDao.getDailyDoseRecordCountFlow(medicineId, startOfDay, endOfDay)
     }
 
-    /**
-     * FIX: Helper function for the ViewModel's transactional dose limit checking.
-     * It uses the Flow function but converts it to a single value using .first()
-     * to work correctly within the suspend recordDose block.
-     */
     suspend fun getRecordsTodayCountSuspend(medicineId: Int): Int {
-        // We use first() to get the current value immediately
         return getRecordsTodayCountFlow(medicineId).first()
     }
 }

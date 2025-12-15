@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // 1. ADD THE KSP PLUGIN FOR ROOM DATABASE (Lab 05 requirement)
+
     id("com.google.devtools.ksp")
 }
 
@@ -60,33 +60,29 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.10.0")
 
-    // Crucial for argument capturing and concise Mockito syntax in Kotlin
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
-    // For coroutine testing (already likely present)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
-    // For assertion library (com.google.common.truth)
     testImplementation("com.google.truth:truth:1.1.5")
     // ---------------------------------------------------------------------------------
-    // 5. NAVIGATION (NEW REQUIREMENT for multi-screen app)
+    // 5. NAVIGATION
     // ---------------------------------------------------------------------------------
-    // Implementation for Compose Navigation: Required to switch between Home and Details screens.
-    implementation("androidx.navigation:navigation-compose:2.7.7") // Using the latest stable version
+
+    implementation("androidx.navigation:navigation-compose:2.7.7")
     // ---------------------------------------------------------------------------------
 
 
     // ---------------------------------------------------------------------------------
-    // 3. ROOM DATABASE (Lab 05 requirement)
+    // 3. ROOM DATABASE
     // ---------------------------------------------------------------------------------
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
-    // KSP annotation processor
     ksp("androidx.room:room-compiler:$room_version")
-    implementation("androidx.room:room-ktx:$room_version") // Coroutines support
+    implementation("androidx.room:room-ktx:$room_version")
 
     // ---------------------------------------------------------------------------------
-    // 4. TESTING (Lab 07 requirement)
+    // 4. TESTING
     // ---------------------------------------------------------------------------------
     val coroutines_test_version = "1.8.0"
 
@@ -94,11 +90,10 @@ dependencies {
     testImplementation("org.mockito:mockito-core:$mockito_version")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 
-    testImplementation(libs.junit) // Existing JUnit 4
+    testImplementation(libs.junit)
 
-    // Coroutine Test dependencies for testing Room/Flow (Lab 07 style testing)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_test_version")
-    testImplementation("com.google.truth:truth:1.1.5") // For clean assertions
+    testImplementation("com.google.truth:truth:1.1.5")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -107,6 +102,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // Additional Android Test dependencies
+  
     androidTestImplementation("com.google.truth:truth:1.1.5")
 }
