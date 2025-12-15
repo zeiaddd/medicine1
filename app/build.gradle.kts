@@ -56,7 +56,18 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+// --- Testing Dependencies ---
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:5.10.0")
 
+    // Crucial for argument capturing and concise Mockito syntax in Kotlin
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+
+    // For coroutine testing (already likely present)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // For assertion library (com.google.common.truth)
+    testImplementation("com.google.truth:truth:1.1.5")
     // ---------------------------------------------------------------------------------
     // 5. NAVIGATION (NEW REQUIREMENT for multi-screen app)
     // ---------------------------------------------------------------------------------
